@@ -8,7 +8,7 @@
         android:id="@+id/editText1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="0.40"
+        android:layout_weight="0.5"
         android:ems="10"
         android:inputType="textMultiLine" >
 
@@ -22,11 +22,34 @@
 
     </ListView>
 
-    <Button
-        android:id="@+id/button1"
-        android:layout_width="127dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="0.02"
-        android:text="@string/scan" />
+        android:layout_margin="@dimen/but"
+        android:layout_weight="0.01"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="127dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.02"
+            android:text="@string/scan" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.02"
+            android:text="@string/onled" />
+
+        <Button
+            android:id="@+id/button3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.02"
+            android:text="@string/ledoff" />
+
+    </LinearLayout>
 
 </LinearLayout>
