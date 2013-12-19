@@ -30,6 +30,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -38,6 +39,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
+import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -46,6 +48,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.TextView.OnEditorActionListener;
 
 public class BlueActivity extends Activity {
 	final Context con = this;
@@ -68,11 +71,13 @@ public class BlueActivity extends Activity {
 	private ConnectedThread mConnectedThread;
 	Handler h;
 	TextView txtArduino;
+	TextView inputText;
 	
 	private StringBuilder sb = new StringBuilder();
 	
 	private final BroadcastReceiver mReceiver = new BroadcastReceiver(){
 
+		@SuppressLint("NewApi")
 		@Override
 		public void onReceive(Context arg0, Intent intent) {
 			// TODO Auto-generated method stub
@@ -85,6 +90,7 @@ public class BlueActivity extends Activity {
 				adapter.add(device.getName()+"\n"+device.getAddress());
 			}
 			lv.setVisibility(View.VISIBLE);
+			//lv.setScaleY(1);
 		}
 		
 	};
@@ -94,6 +100,27 @@ public class BlueActivity extends Activity {
 		setContentView(R.layout.blue);
 		initPopUp();
 		txtArduino = (TextView)findViewById(R.id.editText1);
+		txtArduino.setFocusable(false);
+		txtArduino.setClickable(false);
+		inputText = (TextView)findViewById(R.id.editText2);
+		inputText.setImeActionLabel("Done", KeyEvent.KEYCODE_ENTER);
+		inputText.setOnEditorActionListener(new OnEditorActionListener(){
+
+			@Override
+			public boolean onEditorAction(TextView arg0, int arg1, KeyEvent arg2) {
+				Log.d("BLUE", arg0.toString()+arg1+" "+arg2.toString());
+				// TODO Auto-generated method stub
+				if(arg2.getKeyCode() == KeyEvent.KEYCODE_ENTER && arg2.getAction() == KeyEvent.ACTION_DOWN){
+				
+					mConnectedThread.write(inputText.getText().toString());
+					inputText.setText("");
+					return true;
+				}
+				
+				return false;
+			}
+			
+		});
 		h = new Handler(){
 			@SuppressLint("NewApi")
 			public void handleMessage(Message msg){
@@ -105,8 +132,10 @@ public class BlueActivity extends Activity {
 		                int endOfLineIndex = sb.indexOf("\r\n");                            // determine the end-of-line
 		                if (endOfLineIndex > 0) {                                            // if end-of-line,
 		                    String sbprint = sb.substring(0, endOfLineIndex);               // extract string
-		                    sb.delete(0, sb.length());                                      // and clear
-		                    txtArduino.setText("Data from Arduino: " + sbprint);            // update TextView
+		                    sb.delete(0, sb.length());        
+		                    // and clear
+		                    txtArduino.append(": " + sbprint);
+		                    //txtArduino.setText();            // update TextView
 		                }
 		                //Log.d(TAG, "...String:"+ sb.toString() +  "Byte:" + msg.arg1 + "...");
 		                break;
@@ -134,6 +163,7 @@ public class BlueActivity extends Activity {
 						a.show();
 						//bact.getActionBar().setTitle("连接失败！");
 						bact.setTitle("连接失败");
+						lv.setVisibility(View.INVISIBLE);
 					 }
 				}
 			}
@@ -240,7 +270,8 @@ public class BlueActivity extends Activity {
 					cth = new ConnectThread(device);
 					cth.start();
 					Log.d("BLUE", "...create socket");
-					lv.setVisibility(View.INVISIBLE);
+					lv.setVisibility(View.GONE);
+					//lv.setScaleY(0);
 					//bact.getActionBar().setTitle("正在连接");
 					bact.setTitle("正在连接");
 				}
@@ -264,25 +295,8 @@ public class BlueActivity extends Activity {
 				@Override
 				public void onClick(View arg0) {
 					// TODO Auto-generated method stub
-					/*
-					if(outstream == null){
-						b = new AlertDialog.Builder(con);
-						b.setMessage("还没有连接上设备!!")
-						.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-							
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								// TODO Auto-generated method stub
-								BlueActivity.this.finish();
-							}
-						});
-						AlertDialog a = b.create();
-						a.show();
-					} else {
-					*/	
-						//sendData("1");
-						mConnectedThread.write("1");
-					//}
+					mConnectedThread.write("1");
+					
 				}
 				
 			});
@@ -439,19 +453,7 @@ public class BlueActivity extends Activity {
 			e.printStackTrace();
 		}
 	}
-	/*
-	public void sendData(String message){
-		byte[] msgBuffer = message.getBytes();
-		Log.d("BLUE", "send data "+message);
-		
-		try {
-			outstream.write(msgBuffer);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	*/
+
 	@Override 
 	public void onActivityResult(int req, int res, Intent data){
 		if(req == ena){

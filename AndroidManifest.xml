@@ -20,7 +20,7 @@
             android:configChanges="orientation"
             android:label="BaiduMapSDKDemo"
             android:screenOrientation="sensor" >
-            <!--  intent-filter>
+            <!-- intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -66,6 +66,11 @@
             android:configChanges="orientation|keyboardHidden"
             android:label="@string/demo_name_route"
             android:screenOrientation="sensor" >
+             <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
         <activity
             android:name="baidumapsdk.demo.GeoCoderDemo"
@@ -138,11 +143,11 @@
             android:label="@string/demo_name_share" >
         </activity>
         <activity android:name="baidumapsdk.demo.BlueActivity">
-            <intent-filter>
+            <!-- intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            </intent-filter-->
         </activity>
     </application>
 

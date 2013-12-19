@@ -8,12 +8,20 @@
         android:id="@+id/editText1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="0.5"
+        android:layout_weight="0.23"
         android:ems="10"
+        android:gravity="top"
         android:inputType="textMultiLine" >
 
         <requestFocus />
     </EditText>
+
+    <EditText
+        android:id="@+id/editText2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.08"
+        android:ems="10" />
 
     <ListView
         android:id="@+id/listView1"

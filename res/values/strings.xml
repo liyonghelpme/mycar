@@ -62,5 +62,6 @@
     <string name="onled">点亮</string>
     <string name="ledoff">熄灭</string>
     <string name="Done">确定</string>
+    <string name="findCity">定位城市</string>
 
 </resources>

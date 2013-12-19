@@ -2,6 +2,7 @@ package baidumapsdk.demo;
 
 
 import java.util.ArrayList;
+import java.util.List;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -20,9 +21,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.baidu.mapapi.map.LocationData;
 import com.baidu.mapapi.map.MKEvent;
 import com.baidu.mapapi.map.MKMapTouchListener;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.MyLocationOverlay;
 import com.baidu.mapapi.map.PopupClickListener;
 import com.baidu.mapapi.map.PopupOverlay;
 import com.baidu.mapapi.map.RouteOverlay;
@@ -30,6 +33,7 @@ import com.baidu.mapapi.map.TransitOverlay;
 import com.baidu.mapapi.search.MKAddrInfo;
 import com.baidu.mapapi.search.MKBusLineResult;
 import com.baidu.mapapi.search.MKDrivingRouteResult;
+import com.baidu.mapapi.search.MKGeocoderAddressComponent;
 import com.baidu.mapapi.search.MKPlanNode;
 import com.baidu.mapapi.search.MKPoiResult;
 import com.baidu.mapapi.search.MKRoute;
@@ -41,6 +45,7 @@ import com.baidu.mapapi.search.MKStep;
 import com.baidu.mapapi.search.MKSuggestionResult;
 import com.baidu.mapapi.search.MKTransitRouteResult;
 import com.baidu.mapapi.search.MKWalkingRouteResult;
+import com.baidu.mapapi.utils.DistanceUtil;
 import com.baidu.platform.comapi.basestruct.GeoPoint;
 import com.liyong.map.R;
 /**
@@ -49,7 +54,7 @@ import com.liyong.map.R;
  *
  */
 public class RoutePlanDemo extends Activity {
-
+	RoutePlanDemo demo = this;
 	//UI相关
 	Button mBtnDrive = null;	// 驾车搜索
 	Button mBtnTransit = null;	// 公交搜索
@@ -77,23 +82,54 @@ public class RoutePlanDemo extends Activity {
 	MKSearch mSearch = null;	// 搜索模块，也可去掉地图模块独立使用
 	
 	private Activity act;
+	GPSTracker gps;
+	LocationManager locationm;
+	Button mcityBut;
+	String myCity;
+	MyLocationOverlay myLocationOverlay;
+	TextView startPos;
+	TextView endPos;
+	
+	boolean searchCity = false;
+	boolean searchSuc = true;
+	
+	boolean searchPathYet = false;
+	boolean errorInPath = false;
+	MKRoute myRoute;
+	List<GeoPoint> allPoints;
+	int curPoint;
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		act = this;
+		
 		
         DemoApplication app = (DemoApplication)this.getApplication();
 		setContentView(R.layout.routeplan);
 		CharSequence titleLable="路线规划功能";
         setTitle(titleLable);
+        
+        gps = new GPSTracker(this);
+        
 		//初始化地图
         mMapView = (MapView)findViewById(R.id.bmapView);
         mMapView.setBuiltInZoomControls(false);
         mMapView.getController().setZoom(12);
         mMapView.getController().enableClick(true);
-
+        
+        startPos = (TextView)findViewById(R.id.start);
+        startPos.setFocusable(false);
+        startPos.setClickable(false);
+        startPos.setText("我的位置");
+        
+        endPos = (TextView)findViewById(R.id.end);
+        endPos.setText("碧水豪园");
         //初始化按键
         mBtnDrive = (Button)findViewById(R.id.drive);
+        mBtnDrive.setVisibility(View.INVISIBLE);
+        
         mBtnTransit = (Button)findViewById(R.id.transit);
+        mBtnTransit.setVisibility(View.INVISIBLE);
+        
         mBtnWalk = (Button)findViewById(R.id.walk);
         mBtnPre = (Button)findViewById(R.id.pre);
         mBtnNext = (Button)findViewById(R.id.next);
@@ -101,7 +137,8 @@ public class RoutePlanDemo extends Activity {
         mBtnCusIcon = (Button)findViewById(R.id.customicon);
         mBtnPre.setVisibility(View.INVISIBLE);
 		mBtnNext.setVisibility(View.INVISIBLE);
-	    
+	    mcityBut = (Button)findViewById(R.id.findCity);
+	    mBtnWalk.setVisibility(View.INVISIBLE);
         //按键点击事件
         OnClickListener clickListener = new OnClickListener(){
 			public void onClick(View v) {
@@ -249,8 +286,12 @@ public class RoutePlanDemo extends Activity {
 			//方案数量
 			public void onGetWalkingRouteResult(MKWalkingRouteResult res,
 					int error) {
+				demo.setTitle("路径搜索结束");
+				searchPathYet = true;
+				errorInPath = false;
 				//起点或终点有歧义，需要选择具体的城市列表或地址列表
 				if (error == MKEvent.ERROR_ROUTE_ADDR){
+					errorInPath = true;
 					//遍历所有地址
 //					ArrayList<MKPoiInfo> stPois = res.getAddrResult().mStartPoiList;
 //					ArrayList<MKPoiInfo> enPois = res.getAddrResult().mEndPoiList;
@@ -262,56 +303,27 @@ public class RoutePlanDemo extends Activity {
 					Toast.makeText(RoutePlanDemo.this, "抱歉，未找到结果", Toast.LENGTH_SHORT).show();
 					return;
 				}
+				Toast.makeText(RoutePlanDemo.this, "成功找到路径", Toast.LENGTH_SHORT).show();
 				Log.v("MAP", "number "+res.getNumPlan());
-				LocationManager locationm = (LocationManager) getSystemService(LOCATION_SERVICE);
-
-			       Criteria criteria = new Criteria();
-
-			       criteria.setAccuracy(Criteria.ACCURACY_FINE);
-
-			       criteria.setAltitudeRequired(false);
-
-			       criteria.setBearingRequired(false);
-
-			       criteria.setCostAllowed(true);
-
-			       criteria.setPowerRequirement(Criteria.POWER_LOW);
-
-			       String provider = locationm.getBestProvider(criteria, true);
-			   if(provider == null) {
-				   Log.v("MAP", "please enable GPS!!");
-				   AlertDialog.Builder ab = new AlertDialog.Builder(act);
-				   ab
-				   .setMessage("enable GPS!!")
-				   .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-					
-					@Override
-					public void onClick(DialogInterface arg0, int arg1) {
-						// TODO Auto-generated method stub
-						arg0.cancel();
-					}
-					
-				   });
-				   ab.create().show();
-				   
-			   } else {
+				   double lat = gps.getLatitude();
+				   double lon = gps.getLongitude();
+				   Log.v("MAP", "my position "+lat+" "+lon);
 			       //检测是否允许gps 定位！
-				     Location location = locationm.getLastKnownLocation(provider);
-				   if(location != null) {
-					   double lat = location.getLatitude();
-					   double lon = location.getLongitude();
-					   Log.v("MAP", "my position "+lat+" "+lon);
-				   }
-			   }
+			
+			   
 			    
 				
 				if(res.getNumPlan() > 0) {
 					MKRoutePlan p = res.getPlan(0);
 					Log.v("MAP", "distance "+p.getDistance());
-					Log.v("MAP", "rotes "+p.getNumRoutes());
+					Log.v("MAP", "routes "+p.getNumRoutes());
 					Log.v("MAP", "time "+p.getTime());
 					if(p.getNumRoutes() > 0) {
 						MKRoute r = p.getRoute(0);
+						myRoute = r;
+						curPoint = 0;
+						allPoints = new ArrayList<GeoPoint>();
+						
 						Log.v("MAP", "step num "+r.getNumSteps());
 						Log.v("MAP", "route type "+r.getRouteType());
 						ArrayList<ArrayList<GeoPoint> > arr = r.getArrayPoints();
@@ -324,7 +336,7 @@ public class RoutePlanDemo extends Activity {
 							GeoPoint gp = s.getPoint();
 							int la = gp.getLatitudeE6();
 							int lo = gp.getLongitudeE6();
-							
+							allPoints.add(gp);
 							Log.v("MAP", "weidu "+gp);
 							//计算方向
 							if(i > 0 ){
@@ -351,6 +363,8 @@ public class RoutePlanDemo extends Activity {
 							lastLat = la;
 							lastLon = lo;
 						}
+						rth = new RouteThread();
+						rth.start();
 					}
 				}
 				searchType = 2;
@@ -374,8 +388,44 @@ public class RoutePlanDemo extends Activity {
 			    mBtnPre.setVisibility(View.VISIBLE);
 				mBtnNext.setVisibility(View.VISIBLE);
 			    
+				LocationData locData = new LocationData();
+				locData.latitude = gps.getLatitude();
+				locData.longitude = gps.getLongitude();
+				locData.direction = 0f;
+				myLocationOverlay.setData(locData);
+				
+				
+				mMapView.getOverlays().add(myLocationOverlay);
+				mMapView.refresh();
+				mMapView.getController().animateTo(new GeoPoint((int)(locData.latitude*1e6), (int)(locData.longitude*1e6)));
 			}
 			public void onGetAddrResult(MKAddrInfo res, int error) {
+				MKGeocoderAddressComponent kk = res.addressComponents;
+				String city = kk.city;
+				Log.d("BLUE", "my city "+city);
+				demo.setTitle("你的城市是 "+city);
+				myCity = city;
+				mBtnWalk.setVisibility(View.VISIBLE);
+				
+				if(myLocationOverlay == null)
+					myLocationOverlay = new MyLocationOverlay(mMapView);
+				LocationData locData = new LocationData();
+				locData.latitude = gps.getLatitude();
+				locData.longitude = gps.getLongitude();
+				locData.direction = 0f;
+				myLocationOverlay.setData(locData);
+				
+				mMapView.getOverlays().clear();
+				mMapView.getOverlays().add(myLocationOverlay);
+				mMapView.refresh();
+				mMapView.getController().animateTo(new GeoPoint((int)(locData.latitude*1e6), (int)(locData.longitude*1e6)));
+			
+				searchCity = false;
+				if(myCity == ""){
+					searchSuc = false;
+				} else {
+					searchSuc = true;
+				}
 			}
 			public void onGetPoiResult(MKPoiResult res, int arg1, int arg2) {
 			}
@@ -398,12 +448,84 @@ public class RoutePlanDemo extends Activity {
 				
 			}
         });
+        
+        Log.d("BLUE", "get User position");
+		if(!gps.canGetLocation()) {
+			gps.showSettingsAlert();
+		} else {
+			Log.d("BLUE", "user pos "+gps.getLatitude()+" "+gps.getLongitude());
+			//mSearch.reverseGeocode(new GeoPoint((int)(gps.getLatitude()*1e6), (int)(gps.getLongitude()*1e6)));
+			mcityBut.setOnClickListener(new OnClickListener(){
+
+				@Override
+				public void onClick(View arg0) {
+					// TODO Auto-generated method stub
+					startSearchCity();
+				}
+		    	
+		    });
+		}
+		
+	}
+	RouteThread rth;
+	boolean getTarget = false;
+	private class RouteThread extends Thread {
+		
+		@Override
+		public void run(){
+			while(true){
+				if(curPoint >= allPoints.size()) {
+					getTarget = true;
+					break;
+				}
+				GeoPoint t1 = allPoints.get(curPoint);
+				int lat = (int)(gps.getLatitude()*1e6);
+				int lon = (int)(gps.getLongitude()*1e6);
+				GeoPoint t2 = new GeoPoint(lat, lon);
+				final double dist = DistanceUtil.getDistance(t1, t2);
+				if(dist <= 10){
+					curPoint = curPoint +1;
+				}
+				Log.v("MAP", "距离下一个目标点 距离是 "+dist);
+				demo.runOnUiThread(new Runnable(){
+
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						Toast.makeText(demo, "距离下一个目标点距离是 "+(int)dist+"米", Toast.LENGTH_SHORT).show();
+					
+						LocationData locData = new LocationData();
+						locData.latitude = gps.getLatitude();
+						locData.longitude = gps.getLongitude();
+						locData.direction = 0f;
+						myLocationOverlay.setData(locData);
+						
+						myLocationOverlay.enableCompass();
+						mMapView.refresh();
+					}
+					
+				});
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	public void startSearchCity(){
+		searchCity = true;
+		demo.setTitle("定位当前城市。。。");
+		Log.d("BLUE", "user pos "+gps.getLatitude()+" "+gps.getLongitude());
+		mSearch.reverseGeocode(new GeoPoint((int)(gps.getLatitude()*1e6), (int)(gps.getLongitude()*1e6)));
 	}
 	/**
 	 * 发起路线规划搜索示例
 	 * @param v
 	 */
 	void SearchButtonProcess(View v) {
+		demo.setTitle("正在搜索。。。");
 		//重置浏览节点的路线数据
 		route = null;
 		routeOverlay = null;
@@ -416,7 +538,8 @@ public class RoutePlanDemo extends Activity {
 		
 		// 对起点终点的name进行赋值，也可以直接对坐标赋值，赋值坐标则将根据坐标进行搜索
 		MKPlanNode stNode = new MKPlanNode();
-		stNode.name = editSt.getText().toString();
+		//stNode.name = editSt.getText().toString();
+		stNode.pt = new GeoPoint((int)(gps.getLatitude()*1e6), (int)(gps.getLongitude()*1e6));
 		MKPlanNode enNode = new MKPlanNode();
 		enNode.name = editEn.getText().toString();
 
@@ -426,7 +549,7 @@ public class RoutePlanDemo extends Activity {
 		} else if (mBtnTransit.equals(v)) {
 			mSearch.transitSearch("北京", stNode, enNode);
 		} else if (mBtnWalk.equals(v)) {
-			mSearch.walkingSearch("北京", stNode, "北京", enNode);
+			mSearch.walkingSearch(myCity, stNode, myCity, enNode);
 		} 
 	}
 	/**
@@ -595,4 +718,9 @@ public class RoutePlanDemo extends Activity {
     	super.onRestoreInstanceState(savedInstanceState);
     	mMapView.onRestoreInstanceState(savedInstanceState);
     }
+	public void updateLocation() {
+		if(searchCity == false && searchSuc == false){
+			startSearchCity();
+		}
+	}
 }
