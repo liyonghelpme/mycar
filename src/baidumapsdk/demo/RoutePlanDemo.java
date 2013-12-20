@@ -54,6 +54,7 @@ import com.liyong.map.R;
  *
  */
 public class RoutePlanDemo extends Activity {
+	public BlueActivity bact;
 	RoutePlanDemo demo = this;
 	//UI相关
 	Button mBtnDrive = null;	// 驾车搜索
@@ -98,10 +99,16 @@ public class RoutePlanDemo extends Activity {
 	MKRoute myRoute;
 	List<GeoPoint> allPoints;
 	int curPoint;
+	public TextView blueInfo;
+	Button dir;
+	Button forward;
+	Button stop;
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		act = this;
-		
+		Intent myIntent = getIntent();
+		bact = BlueActivity.globalBact;
+		bact.mConnectedThread.pd = this;
 		
         DemoApplication app = (DemoApplication)this.getApplication();
 		setContentView(R.layout.routeplan);
@@ -109,8 +116,44 @@ public class RoutePlanDemo extends Activity {
         setTitle(titleLable);
         
         gps = new GPSTracker(this);
+        blueInfo = (TextView)findViewById(R.id.editText1);
+        blueInfo.setClickable(false);
+        blueInfo.setFocusable(false);
         
-		//初始化地图
+        dir = (Button)findViewById(R.id.button1);
+        dir.setOnClickListener(new OnClickListener(){
+
+			@Override
+			public void onClick(View arg0) {
+				// TODO Auto-generated method stub
+				if(rth != null) {
+					Log.d("MAP", "CURDIR"+rth.curDir);
+					bact.mConnectedThread.write("N"+rth.curDir+"\n");
+				}
+			}
+        	
+        });
+        forward = (Button)findViewById(R.id.button2);
+		forward.setOnClickListener(new OnClickListener(){
+
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				bact.mConnectedThread.write("f");
+			}
+			
+		});
+		stop = (Button)findViewById(R.id.button3);
+		stop.setOnClickListener(new OnClickListener(){
+
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				bact.mConnectedThread.write("s");
+			}
+			
+		});
+        //初始化地图
         mMapView = (MapView)findViewById(R.id.bmapView);
         mMapView.setBuiltInZoomControls(false);
         mMapView.getController().setZoom(12);
@@ -469,13 +512,30 @@ public class RoutePlanDemo extends Activity {
 	}
 	RouteThread rth;
 	boolean getTarget = false;
-	private class RouteThread extends Thread {
-		
+	public class RouteThread extends Thread {
+		public int state = 0;
+		public int curDir = 0;
+		public long waitTime = 0;
+		public RouteThread(){
+			
+		}
+		public void showInfo(final String w){
+			demo.runOnUiThread(new Runnable(){
+
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+					Toast.makeText(demo, w, Toast.LENGTH_SHORT).show();
+				}
+				
+			});
+		}
 		@Override
 		public void run(){
 			while(true){
 				if(curPoint >= allPoints.size()) {
 					getTarget = true;
+					showInfo("到达目的地");
 					break;
 				}
 				GeoPoint t1 = allPoints.get(curPoint);
@@ -497,16 +557,96 @@ public class RoutePlanDemo extends Activity {
 						LocationData locData = new LocationData();
 						locData.latitude = gps.getLatitude();
 						locData.longitude = gps.getLongitude();
-						locData.direction = 0f;
+						locData.direction = curDir;
 						myLocationOverlay.setData(locData);
 						
 						myLocationOverlay.enableCompass();
+						
 						mMapView.refresh();
 					}
 					
 				});
+				//小车转向
+				if(state == 0){
+					
+					double lat1 = lat/1000000.*Math.PI/180;
+					double lon1 = lon/1000000.*Math.PI/180;
+					double lat2 = t1.getLatitudeE6()*1.0/1000000*Math.PI/180;
+					double lon2 = t1.getLongitudeE6()*1.0/1000000*Math.PI/180;
+					double dLon = lon2-lon1;
+					double dlat = lat2-lat1;
+					double y = Math.sin(dLon) * Math.cos(lat2);
+					double x = Math.cos(lat1)*Math.sin(lat2) -
+					        Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+					double brng = Math.atan2(y, x)*180/Math.PI;
+					if(brng < 0){
+						brng += 360;
+					}
+					curDir = (int)brng;
+					Log.v("Map", "diff lat, diff lon "+dlat+" "+dLon);
+					Log.v("MAP", "bearing "+brng);
+					
+				//命令 向北 多少度 旋转  Nxxx\n
+				//DIROK\n
+				//f  forward 小车行动10s种
+				//MOVEOK\n
+				//人行动一会 追上小车 接着行动
+					
+					if(bact != null) {
+						state = 1;
+						Log.d("Map", "send CMD");
+						if(brng < 0){
+							brng += 360;
+						}
+						bact.mConnectedThread.write("N"+(int)(brng)+"\n");
+					}
+				//读取蓝牙数据
+				} else if(state == 1) {
+					String cmd = null;
+					String [] allcmd;
+					int last = 0;
+					synchronized("cmdbuffer"){
+						allcmd = bact.cmdBuffer.split("\n");
+						last = bact.cmdBuffer.lastIndexOf("\n");
+					}
+					int i = 0;
+					for(; i < allcmd.length; i++){
+						cmd = allcmd[i];
+						Log.d("BLUE", "read cmd is "+cmd);
+						if(allcmd[i].equals("DIROK")){
+							waitTime = System.currentTimeMillis();
+							state = 2;
+							bact.mConnectedThread.write("f");
+							showInfo("小车方向旋转结束");
+							break;
+						}
+					}
+					synchronized("cmdbuffer"){
+						bact.cmdBuffer = bact.cmdBuffer.substring(last+1);
+					}
+					
+					Log.d("MAP", "readCMD");
+					Log.d("MAP", cmd);
+					
+				}else if(state == 2) {
+					
+					long now = System.currentTimeMillis();
+					if(now - waitTime > 3*1000) {
+						bact.mConnectedThread.write("s");
+						state = 3;
+						waitTime = now;
+					}
+					
+				}else if(state == 3){
+					long now = System.currentTimeMillis();
+					if(now-waitTime > 5*1000) {
+					//如果用户和 小车距离足够近了 则 回到0 状态
+				
+						state = 0;
+					}
+				}
 				try {
-					Thread.sleep(3000);
+					Thread.sleep(5000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

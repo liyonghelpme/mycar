@@ -63,5 +63,9 @@
     <string name="ledoff">熄灭</string>
     <string name="Done">确定</string>
     <string name="findCity">定位城市</string>
+    <string name="map">进入地图</string>
+    <string name="dir">定位方向</string>
+    <string name="forward">前进</string>
+    <string name="stop">停止</string>
 
 </resources>

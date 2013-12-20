@@ -49,10 +49,12 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
+import android.widget.Toast;
 
 public class BlueActivity extends Activity {
 	final Context con = this;
 	BlueActivity bact = this;
+	public static BlueActivity globalBact;
 	Button scan;
 	Set<BluetoothDevice> pairedDevices;
 	BluetoothAdapter mBluetoothAdapter;
@@ -68,13 +70,15 @@ public class BlueActivity extends Activity {
 	String conAddress;
 	final int RECEIVE_MESSAGE = 1;
 	final int CONNECT = 2;
-	private ConnectedThread mConnectedThread;
+	public ConnectedThread mConnectedThread;
 	Handler h;
 	TextView txtArduino;
 	TextView inputText;
 	
+	
 	private StringBuilder sb = new StringBuilder();
 	
+	String cmdBuffer = new String();
 	private final BroadcastReceiver mReceiver = new BroadcastReceiver(){
 
 		@SuppressLint("NewApi")
@@ -89,19 +93,33 @@ public class BlueActivity extends Activity {
 				//mdevice.add(device.getName()+"\n"+device.getAddress());
 				adapter.add(device.getName()+"\n"+device.getAddress());
 			}
+			Log.d("BLUE", "search successful");
 			lv.setVisibility(View.VISIBLE);
 			//lv.setScaleY(1);
 		}
 		
 	};
+	
 	@Override
 	public void onCreate(Bundle saved){
 		super.onCreate(saved);
+		globalBact = this;
 		setContentView(R.layout.blue);
 		initPopUp();
 		txtArduino = (TextView)findViewById(R.id.editText1);
 		txtArduino.setFocusable(false);
 		txtArduino.setClickable(false);
+		Button mapBut = (Button)findViewById(R.id.button4);
+		mapBut.setOnClickListener(new OnClickListener(){
+
+			@Override
+			public void onClick(View arg0) {
+				// TODO Auto-generated method stub
+				Intent myin = new Intent(BlueActivity.this, RoutePlanDemo.class);
+				startActivity(myin);
+			}
+			
+		});
 		inputText = (TextView)findViewById(R.id.editText2);
 		inputText.setImeActionLabel("Done", KeyEvent.KEYCODE_ENTER);
 		inputText.setOnEditorActionListener(new OnEditorActionListener(){
@@ -127,7 +145,10 @@ public class BlueActivity extends Activity {
 				switch(msg.what){
 				case RECEIVE_MESSAGE:
 					 byte[] readBuf = (byte[]) msg.obj;
-		                String strIncom = new String(readBuf, 0, msg.arg1);                 // create string from bytes array
+		                String strIncom = new String(readBuf, 0, msg.arg1);
+		                txtArduino.append(":"+strIncom);
+		                // create string from bytes array
+		                /*
 		                sb.append(strIncom);                                                // append string
 		                int endOfLineIndex = sb.indexOf("\r\n");                            // determine the end-of-line
 		                if (endOfLineIndex > 0) {                                            // if end-of-line,
@@ -137,7 +158,10 @@ public class BlueActivity extends Activity {
 		                    txtArduino.append(": " + sbprint);
 		                    //txtArduino.setText();            // update TextView
 		                }
-		                //Log.d(TAG, "...String:"+ sb.toString() +  "Byte:" + msg.arg1 + "...");
+		                */
+		                
+		                Log.d("BLUE", "...String:"+ strIncom +  "Byte:" + msg.arg1 + "...");
+		               
 		                break;
 				case CONNECT:
 					 if(bsocket != null){
@@ -146,6 +170,7 @@ public class BlueActivity extends Activity {
 						 mConnectedThread.start();
 						 //bact.getActionBar().setTitle("连接成功");
 						 bact.setTitle("连接成功");
+						 txtArduino.setText("连接成功");
 					 }else{
 						 //连接失败
 						 b = new AlertDialog.Builder(con);
@@ -163,7 +188,7 @@ public class BlueActivity extends Activity {
 						a.show();
 						//bact.getActionBar().setTitle("连接失败！");
 						bact.setTitle("连接失败");
-						lv.setVisibility(View.INVISIBLE);
+						lv.setVisibility(View.VISIBLE);
 					 }
 				}
 			}
@@ -274,6 +299,7 @@ public class BlueActivity extends Activity {
 					//lv.setScaleY(0);
 					//bact.getActionBar().setTitle("正在连接");
 					bact.setTitle("正在连接");
+					txtArduino.setText("正在连接");
 				}
 				
 			});
@@ -281,7 +307,6 @@ public class BlueActivity extends Activity {
 			//扫描设备
 			scan = (Button)findViewById(R.id.button1);
 			scan.setOnClickListener(new OnClickListener(){
-	
 				@Override
 				public void onClick(View arg0) {
 					boolean sd = mBluetoothAdapter.startDiscovery();
@@ -306,33 +331,18 @@ public class BlueActivity extends Activity {
 				@Override
 				public void onClick(View v) {
 					// TODO Auto-generated method stub
-					/*
-					if(outstream == null){
-						b = new AlertDialog.Builder(con);
-						b.setMessage("还没有连接上设备!!")
-						.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-							
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								// TODO Auto-generated method stub
-								BlueActivity.this.finish();
-							}
-						});
-						AlertDialog a = b.create();
-						a.show();
-					} else {
-					*/
-						//sendData("0");
-						mConnectedThread.write("0");
-					//}
+					mConnectedThread.write("0");
+					
 				}
 				
 			});
 		}
 	}
-	private class ConnectedThread extends Thread{
+	public class ConnectedThread extends Thread{
 		private final InputStream mmInStream;
 		private final OutputStream mmOutStream;
+		public RoutePlanDemo pd = null;
+		public boolean throwData = false;
 		public ConnectedThread(BluetoothSocket socket){
 			InputStream tmpIn = null;
 			OutputStream tmpOut = null;
@@ -351,8 +361,34 @@ public class BlueActivity extends Activity {
 			while(true){
 				try{
 					bytes = mmInStream.read(buffer);
-					h.obtainMessage(RECEIVE_MESSAGE, bytes, -1, buffer).sendToTarget();
+					String strIncom;
+					synchronized("cmdbuffer") {
+						strIncom = new String(buffer, 0, bytes);
+		                cmdBuffer += strIncom;
+		                if(cmdBuffer.length() > 10000){
+		                	cmdBuffer = cmdBuffer.substring(5000);
+		                }
+		                
+		            }
+					//显示当前读到的客户端信息
+					final String ww = strIncom;
+					if(pd!=null){
+						pd.runOnUiThread(new Runnable(){
+
+							@Override
+							public void run() {
+								// TODO Auto-generated method stub
+								//Toast.makeText(pd, ww, Toast.LENGTH_SHORT).show();
+								pd.blueInfo.setText(ww);
+							}
+							
+						});
+					}
+					
+					//当前Activity 不在最上层的时候 改变view内容
+					//h.obtainMessage(RECEIVE_MESSAGE, bytes, -1, buffer).sendToTarget();
 				}catch(IOException e){
+					e.printStackTrace();
 					break;
 				}
 			}
