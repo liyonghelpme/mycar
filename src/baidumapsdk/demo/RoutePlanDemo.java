@@ -553,6 +553,7 @@ public class RoutePlanDemo extends Activity {
 				final double dist = DistanceUtil.getDistance(t1, t2);
 				if(dist <= 10){
 					curPoint = curPoint +1;
+					continue;
 				}
 				Log.v("MAP", "距离下一个目标点 距离是 "+dist);
 				demo.runOnUiThread(new Runnable(){
@@ -660,7 +661,7 @@ public class RoutePlanDemo extends Activity {
 					}
 				}
 				try {
-					Thread.sleep(5000);
+					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
