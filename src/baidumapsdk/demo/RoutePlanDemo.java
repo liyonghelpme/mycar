@@ -108,7 +108,9 @@ public class RoutePlanDemo extends Activity {
 		act = this;
 		Intent myIntent = getIntent();
 		bact = BlueActivity.globalBact;
-		bact.mConnectedThread.pd = this;
+		if(bact.mConnectedThread != null) {
+			bact.mConnectedThread.pd = this;
+		}
 		
         DemoApplication app = (DemoApplication)this.getApplication();
 		setContentView(R.layout.routeplan);
@@ -128,7 +130,9 @@ public class RoutePlanDemo extends Activity {
 				// TODO Auto-generated method stub
 				if(rth != null) {
 					Log.d("MAP", "CURDIR"+rth.curDir);
-					bact.mConnectedThread.write("N"+rth.curDir+"\n");
+					if(bact.mConnectedThread != null) {
+						bact.mConnectedThread.write("N"+rth.curDir+"\n");
+					}
 				}
 			}
         	
@@ -139,7 +143,9 @@ public class RoutePlanDemo extends Activity {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				bact.mConnectedThread.write("f");
+				if(bact.mConnectedThread != null) {
+					bact.mConnectedThread.write("f");
+				}
 			}
 			
 		});
@@ -149,7 +155,9 @@ public class RoutePlanDemo extends Activity {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				bact.mConnectedThread.write("s");
+				if(bact.mConnectedThread != null) {
+					bact.mConnectedThread.write("s");
+				}
 			}
 			
 		});
@@ -598,7 +606,9 @@ public class RoutePlanDemo extends Activity {
 						if(brng < 0){
 							brng += 360;
 						}
-						bact.mConnectedThread.write("N"+(int)(brng)+"\n");
+						if(bact.mConnectedThread != null) {
+							bact.mConnectedThread.write("N"+(int)(brng)+"\n");
+						}
 					}
 				//读取蓝牙数据
 				} else if(state == 1) {
@@ -616,7 +626,9 @@ public class RoutePlanDemo extends Activity {
 						if(allcmd[i].equals("DIROK")){
 							waitTime = System.currentTimeMillis();
 							state = 2;
-							bact.mConnectedThread.write("f");
+							if(bact.mConnectedThread != null) {
+								bact.mConnectedThread.write("f");
+							}
 							showInfo("小车方向旋转结束");
 							break;
 						}
@@ -632,7 +644,9 @@ public class RoutePlanDemo extends Activity {
 					
 					long now = System.currentTimeMillis();
 					if(now - waitTime > 3*1000) {
-						bact.mConnectedThread.write("s");
+						if(bact.mConnectedThread != null) {
+							bact.mConnectedThread.write("s");
+						}
 						state = 3;
 						waitTime = now;
 					}

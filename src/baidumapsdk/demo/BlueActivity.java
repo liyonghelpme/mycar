@@ -91,11 +91,23 @@ public class BlueActivity extends Activity {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				Log.i("BLUE", "find device "+device.getName());
 				//mdevice.add(device.getName()+"\n"+device.getAddress());
-				adapter.add(device.getName()+"\n"+device.getAddress());
+				//adapter.add(device.getName()+"\n"+device.getAddress());
+				mdevice.add(device.getName()+"\n"+device.getAddress());
+				adapter = new StableArrayAdapter(con, android.R.layout.simple_list_item_1, mdevice);
+				lv.setAdapter(adapter); 
 			}
 			Log.d("BLUE", "search successful");
 			lv.setVisibility(View.VISIBLE);
 			//lv.setScaleY(1);
+			BlueActivity.this.runOnUiThread(new Runnable(){
+
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+					txtArduino.setText("扫描设备成功");
+				}
+				
+			});
 		}
 		
 	};
@@ -310,7 +322,8 @@ public class BlueActivity extends Activity {
 				@Override
 				public void onClick(View arg0) {
 					boolean sd = mBluetoothAdapter.startDiscovery();
-					Log.i("BLUE", "start scan");
+					Log.i("BLUE", "start scan "+sd);
+					txtArduino.setText("开始扫描设备");
 				}
 			});
 			
@@ -416,7 +429,7 @@ public class BlueActivity extends Activity {
 	      return  device.createRfcommSocketToServiceRecord(myUUID);
 	  }
 	 
-	private class StableArrayAdapter extends ArrayAdapter<String>{
+	public class StableArrayAdapter extends ArrayAdapter<String>{
 		HashMap<String, Integer> mIdMap = new HashMap<String, Integer>();
 		public StableArrayAdapter(Context context,
 				int textViewResourceId, List<String> objects) {

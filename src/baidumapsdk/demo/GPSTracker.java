@@ -131,7 +131,7 @@ public class GPSTracker extends Service implements LocationListener{
         } catch (Exception e) {
             e.printStackTrace();
         }
-        mContext.setTitle("定位结束");
+        mContext.setTitle("定位经纬度结束");
         return location;
     }
 	 public void stopUsingGPS(){
